@@ -2,7 +2,6 @@
   "name": "@prospective/rc-picker",
   "version": "2.5.20-0",
   "description": "React date & time picker",
-  "private": true,
   "publishConfig": {
     "registry": "https://npm.pkg.github.com/"
   },
