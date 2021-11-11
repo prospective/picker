@@ -351,6 +351,18 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
   // ============================ Trigger ============================
   const triggerRef = React.useRef<any>();
 
+  function getSelectedDateRange(
+    startDate,
+    endDate,
+  ): [string, Exclude<RangeValue<DateType>, null> | (() => Exclude<RangeValue<DateType>, null>)] {
+    return Object.entries(ranges).find(([label, range]) => {
+      const [from, to] = Array.isArray(range) ? range : range();
+      return isSameDate(generateConfig, from, startDate) && isSameDate(generateConfig, to, endDate)
+        ? [label, range]
+        : undefined;
+    });
+  }
+
   function triggerOpen(newOpen: boolean, index: 0 | 1) {
     if (newOpen) {
       clearTimeout(triggerRef.current);
@@ -1056,6 +1068,9 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
     }
   };
 
+  const selectedRange = selectedValue ? getSelectedDateRange(...selectedValue) : undefined;
+  const selectedRangeLabel = selectedRange?.[0];
+
   return (
     <PanelContext.Provider
       value={{
@@ -1105,42 +1120,46 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
               id={id}
               disabled={mergedDisabled[0]}
               readOnly={inputReadOnly || typeof formatList[0] === 'function' || !startTyping}
-              value={startHoverValue || startText}
+              value={startHoverValue || selectedRangeLabel || startText}
               onChange={(e) => {
                 triggerStartTextChange(e.target.value);
               }}
               autoFocus={autoFocus}
-              placeholder={getValue(placeholder, 0) || ''}
+              placeholder={selectedRangeLabel || getValue(placeholder, 0) || ''}
               ref={startInputRef}
               {...startInputProps}
               {...inputSharedProps}
               autoComplete={autoComplete}
             />
           </div>
-          <div className={`${prefixCls}-range-separator`} ref={separatorRef}>
-            {separator}
-          </div>
-          <div
-            className={classNames(`${prefixCls}-input`, {
-              [`${prefixCls}-input-active`]: mergedActivePickerIndex === 1,
-              [`${prefixCls}-input-placeholder`]: !!endHoverValue,
-            })}
-            ref={endInputDivRef}
-          >
-            <input
-              disabled={mergedDisabled[1]}
-              readOnly={inputReadOnly || typeof formatList[0] === 'function' || !endTyping}
-              value={endHoverValue || endText}
-              onChange={(e) => {
-                triggerEndTextChange(e.target.value);
-              }}
-              placeholder={getValue(placeholder, 1) || ''}
-              ref={endInputRef}
-              {...endInputProps}
-              {...inputSharedProps}
-              autoComplete={autoComplete}
-            />
-          </div>
+          {(!selectedRange || mergedOpen) && (
+            <>
+              <div className={`${prefixCls}-range-separator`} ref={separatorRef}>
+                {separator}
+              </div>
+              <div
+                className={classNames(`${prefixCls}-input`, {
+                  [`${prefixCls}-input-active`]: mergedActivePickerIndex === 1,
+                  [`${prefixCls}-input-placeholder`]: !!endHoverValue,
+                })}
+                ref={endInputDivRef}
+              >
+                <input
+                  disabled={mergedDisabled[1]}
+                  readOnly={inputReadOnly || typeof formatList[0] === 'function' || !endTyping}
+                  value={endHoverValue || endText}
+                  onChange={(e) => {
+                    triggerEndTextChange(e.target.value);
+                  }}
+                  placeholder={getValue(placeholder, 1) || ''}
+                  ref={endInputRef}
+                  {...endInputProps}
+                  {...inputSharedProps}
+                  autoComplete={autoComplete}
+                />
+              </div>
+            </>
+          )}
           <div
             className={`${prefixCls}-active-bar`}
             style={{

@@ -1,7 +1,11 @@
 {
-  "name": "rc-picker",
+  "name": "@prospective/rc-picker",
   "version": "2.5.19",
   "description": "React date & time picker",
+  "private": true,
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com/"
+  },
   "keywords": [
     "react",
     "react-component",
@@ -16,13 +20,10 @@
     "lib",
     "dist"
   ],
-  "homepage": "https://react-component.github.io/picker",
+  "homepage": "https://github.com/prospective/picker",
   "repository": {
     "type": "git",
-    "url": "git@github.com:react-component/picker.git"
-  },
-  "bugs": {
-    "url": "http://github.com/react-component/picker/issues"
+    "url": "git@github.com:prospective/picker.git"
   },
   "license": "MIT",
   "scripts": {
