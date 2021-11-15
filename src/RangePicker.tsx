@@ -90,6 +90,7 @@ export type RangePickerSharedProps<DateType> = {
     string,
     Exclude<RangeValue<DateType>, null> | (() => Exclude<RangeValue<DateType>, null>)
   >;
+  displayRangeLabelAsValue?: boolean;
   separator?: React.ReactNode;
   allowEmpty?: [boolean, boolean];
   mode?: [PanelMode, PanelMode];
@@ -131,6 +132,7 @@ type OmitPickerProps<Props> = Omit<
   | 'onPickerValueChange'
   | 'onOk'
   | 'dateRender'
+  | 'displayRangeLabelAsValue'
 >;
 
 type RangeShowTimeObject<DateType> = Omit<SharedTimeProps<DateType>, 'defaultValue'> & {
@@ -195,6 +197,7 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
     dateRender,
     panelRender,
     ranges,
+    displayRangeLabelAsValue,
     allowEmpty,
     allowClear,
     suffixIcon,
@@ -240,6 +243,7 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
   const [mergedActivePickerIndex, setMergedActivePickerIndex] = useMergedState<0 | 1>(0, {
     value: activePickerIndex,
   });
+  const [activeInputIndex, setActiveInputIndex] = useState<0 | 1>(0);
 
   // Operation ref
   const operationRef: React.MutableRefObject<ContextOperationRefProps | null> =
@@ -320,11 +324,15 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
     openRecordsRef.current[0],
   );
 
+  const selectedRange = selectedValue ? getSelectedDateRange(...selectedValue) : undefined;
+  const selectedRangeLabel = displayRangeLabelAsValue ? selectedRange?.[0] : undefined;
+
   // ============================= Open ==============================
   const [mergedOpen, triggerInnerOpen] = useMergedState(false, {
     value: open,
     defaultValue: defaultOpen,
-    postState: (postOpen) => (mergedDisabled[mergedActivePickerIndex] ? false : postOpen),
+    postState: (postOpen) =>
+      mergedDisabled[mergedActivePickerIndex] && !selectedRangeLabel ? false : postOpen,
     onChange: (newOpen) => {
       if (onOpenChange) {
         onOpenChange(newOpen);
@@ -355,7 +363,7 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
     startDate,
     endDate,
   ): [string, Exclude<RangeValue<DateType>, null> | (() => Exclude<RangeValue<DateType>, null>)] {
-    return Object.entries(ranges).find(([label, range]) => {
+    return Object.entries(ranges || {}).find(([label, range]) => {
       const [from, to] = Array.isArray(range) ? range : range();
       return isSameDate(generateConfig, from, startDate) && isSameDate(generateConfig, to, endDate)
         ? [label, range]
@@ -363,17 +371,25 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
     });
   }
 
+  function getPickerIndexToOpen(activatedPickerIndex) {
+    return activatedPickerIndex === 0 && selectedRangeLabel && mergedDisabled[0]
+      ? 1
+      : activatedPickerIndex;
+  }
+
   function triggerOpen(newOpen: boolean, index: 0 | 1) {
+    const pickerIndex = getPickerIndexToOpen(index);
     if (newOpen) {
       clearTimeout(triggerRef.current);
-      openRecordsRef.current[index] = true;
+      openRecordsRef.current[pickerIndex] = true;
 
-      setMergedActivePickerIndex(index);
+      setMergedActivePickerIndex(pickerIndex);
+      setActiveInputIndex(index);
       triggerInnerOpen(newOpen);
 
       // Open to reset view date
       if (!mergedOpen) {
-        setViewDate(null, index);
+        setViewDate(null, pickerIndex);
       }
     } else if (mergedActivePickerIndex === index) {
       triggerInnerOpen(newOpen);
@@ -606,7 +622,9 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
         target as HTMLElement,
       ),
     onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
-      setMergedActivePickerIndex(index);
+      const pickerIndex = getPickerIndexToOpen(index);
+      setMergedActivePickerIndex(pickerIndex);
+      setActiveInputIndex(index);
       if (onFocus) {
         onFocus(e);
       }
@@ -1041,7 +1059,7 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
   let activeBarLeft: number = 0;
   let activeBarWidth: number = 0;
   if (startInputDivRef.current && endInputDivRef.current && separatorRef.current) {
-    if (mergedActivePickerIndex === 0) {
+    if (activeInputIndex === 0) {
       activeBarWidth = startInputDivRef.current.offsetWidth;
     } else {
       activeBarLeft = arrowLeft;
@@ -1067,9 +1085,6 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
       setSelectedValue(values);
     }
   };
-
-  const selectedRange = selectedValue ? getSelectedDateRange(...selectedValue) : undefined;
-  const selectedRangeLabel = selectedRange?.[0];
 
   return (
     <PanelContext.Provider
@@ -1099,7 +1114,7 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
           ref={containerRef}
           className={classNames(prefixCls, `${prefixCls}-range`, className, {
             [`${prefixCls}-disabled`]: mergedDisabled[0] && mergedDisabled[1],
-            [`${prefixCls}-focused`]: mergedActivePickerIndex === 0 ? startFocused : endFocused,
+            [`${prefixCls}-focused`]: activeInputIndex === 0 ? startFocused : endFocused,
             [`${prefixCls}-rtl`]: direction === 'rtl',
           })}
           style={style}
@@ -1118,9 +1133,9 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
           >
             <input
               id={id}
-              disabled={mergedDisabled[0]}
+              disabled={mergedDisabled[0] && !(selectedRangeLabel && !mergedOpen)}
               readOnly={inputReadOnly || typeof formatList[0] === 'function' || !startTyping}
-              value={startHoverValue || selectedRangeLabel || startText}
+              value={startHoverValue || (!mergedOpen && selectedRangeLabel) || startText}
               onChange={(e) => {
                 triggerStartTextChange(e.target.value);
               }}
@@ -1132,7 +1147,7 @@ function InnerRangePicker<DateType>(props: RangePickerProps<DateType>) {
               autoComplete={autoComplete}
             />
           </div>
-          {(!selectedRange || mergedOpen) && (
+          {(!selectedRangeLabel || mergedOpen) && (
             <>
               <div className={`${prefixCls}-range-separator`} ref={separatorRef}>
                 {separator}
